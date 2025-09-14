@@ -1,4 +1,6 @@
 // 3D FPS Game - Main Game Logic
+console.log('FPS Game script loaded');
+
 class FPSGame {
     constructor() {
         this.scene = null;
@@ -931,7 +933,19 @@ document.addEventListener('DOMContentLoaded', initializeGame);
 // Fallback if DOMContentLoaded already fired
 if (document.readyState === 'loading') {
     // Still loading, wait for DOMContentLoaded
+    console.log('Document still loading, waiting for DOMContentLoaded');
 } else {
     // Already loaded, initialize immediately
+    console.log('Document already loaded, initializing immediately');
     initializeGame();
 }
+
+console.log('Script execution complete');
+
+// Test function
+function testFunction() {
+    console.log('Test function works!');
+}
+
+// Test if we can call the function
+testFunction();
