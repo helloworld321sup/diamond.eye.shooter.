@@ -772,8 +772,15 @@ class Player {
         this.currentAmmo = this.maxAmmo;
         this.totalAmmo = 120;
         this.isReloading = false;
-        this.body.position.set(0, 2, 0);
-        this.body.velocity.set(0, 0, 0);
+        
+        if (this.body) {
+            this.body.position.set(0, 2, 0);
+            this.body.velocity.set(0, 0, 0);
+        } else {
+            // No physics - reset position manually
+            this.position = { x: 0, y: 2, z: 0 };
+            this.camera.position.set(0, 1.6, 0);
+        }
     }
 }
 
@@ -857,12 +864,17 @@ class Enemy {
         this.mesh.castShadow = true;
         this.scene.add(this.mesh);
         
-        // Create physics body
-        const shape = new CANNON.Cylinder(0.5, 0.5, 2, 8);
-        this.body = new CANNON.Body({ mass: 1 });
-        this.body.addShape(shape);
-        this.body.position.set(x, y + 1, z);
-        this.world.add(this.body);
+        // Create physics body (only if world exists)
+        if (this.world) {
+            const shape = new CANNON.Cylinder(0.5, 0.5, 2, 8);
+            this.body = new CANNON.Body({ mass: 1 });
+            this.body.addShape(shape);
+            this.body.position.set(x, y + 1, z);
+            this.world.add(this.body);
+        } else {
+            // No physics - just set position
+            this.position = { x: x, y: y + 1, z: z };
+        }
     }
     
     update(deltaTime) {
@@ -873,11 +885,16 @@ class Enemy {
         direction.normalize();
         
         // Apply movement
-        this.body.velocity.x = direction.x * this.speed;
-        this.body.velocity.z = direction.z * this.speed;
-        
-        // Update mesh position
-        this.mesh.position.copy(this.body.position);
+        if (this.body) {
+            this.body.velocity.x = direction.x * this.speed;
+            this.body.velocity.z = direction.z * this.speed;
+            // Update mesh position from physics body
+            this.mesh.position.copy(this.body.position);
+        } else {
+            // No physics - move mesh directly
+            this.mesh.position.x += direction.x * this.speed * deltaTime;
+            this.mesh.position.z += direction.z * this.speed * deltaTime;
+        }
         
         // Look at player
         this.mesh.lookAt(this.player.camera.position);
@@ -905,7 +922,9 @@ class Enemy {
     
     destroy() {
         this.scene.remove(this.mesh);
-        this.world.remove(this.body);
+        if (this.world && this.body) {
+            this.world.remove(this.body);
+        }
     }
 }
 
