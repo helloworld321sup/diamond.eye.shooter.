@@ -99,31 +99,55 @@ class FPSGame {
     setupThreeJS() {
         const canvas = document.getElementById('gameCanvas');
         
+        if (!canvas) {
+            console.error('Canvas element not found!');
+            return;
+        }
+        
         // Scene
         this.scene = new THREE.Scene();
-        this.scene.fog = new THREE.Fog(0x000000, 10, 100);
+        this.scene.fog = new THREE.Fog(0x404040, 10, 100); // Changed to gray fog for visibility
+        this.scene.background = new THREE.Color(0x404040); // Gray background instead of black
         
         // Camera
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.camera.position.set(0, 1.6, 0);
         
         // Renderer
-        this.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+        this.renderer = new THREE.WebGLRenderer({ 
+            canvas: canvas, 
+            antialias: true,
+            alpha: false
+        });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        this.renderer.setClearColor(0x000000);
+        this.renderer.setClearColor(0x404040); // Gray background
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
         
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+        // Lighting - Much brighter
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); // Much brighter ambient
         this.scene.add(ambientLight);
         
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0); // Brighter directional
         directionalLight.position.set(10, 10, 5);
         directionalLight.castShadow = true;
         directionalLight.shadow.mapSize.width = 2048;
         directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.camera.near = 0.1;
+        directionalLight.shadow.camera.far = 50;
+        directionalLight.shadow.camera.left = -25;
+        directionalLight.shadow.camera.right = 25;
+        directionalLight.shadow.camera.top = 25;
+        directionalLight.shadow.camera.bottom = -25;
         this.scene.add(directionalLight);
+        
+        // Add some additional lighting
+        const pointLight = new THREE.PointLight(0xffffff, 0.5, 100);
+        pointLight.position.set(0, 10, 0);
+        this.scene.add(pointLight);
+        
+        console.log('Three.js setup complete');
         
         // Handle window resize
         window.addEventListener('resize', () => {
@@ -248,13 +272,19 @@ class FPSGame {
     }
     
     createLevel() {
-        // Ground
+        console.log('Creating level...');
+        
+        // Ground - Make it more visible
         const groundGeometry = new THREE.PlaneGeometry(100, 100);
-        const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+        const groundMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0x666666,
+            side: THREE.DoubleSide
+        });
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
         this.scene.add(ground);
+        console.log('Ground added');
         
         // Ground physics
         const groundShape = new CANNON.Plane();
@@ -263,11 +293,23 @@ class FPSGame {
         groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
         this.world.add(groundBody);
         
+        // Add a test cube to make sure rendering works
+        const testGeometry = new THREE.BoxGeometry(2, 2, 2);
+        const testMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+        const testCube = new THREE.Mesh(testGeometry, testMaterial);
+        testCube.position.set(0, 1, -5);
+        testCube.castShadow = true;
+        testCube.receiveShadow = true;
+        this.scene.add(testCube);
+        console.log('Test cube added');
+        
         // Walls
         this.createWalls();
         
         // Obstacles
         this.createObstacles();
+        
+        console.log('Level creation complete');
     }
     
     createWalls() {
@@ -506,7 +548,9 @@ class FPSGame {
         
         if (this.gameState === 'playing') {
             // Update player
-            this.player.update(deltaTime, this.keys, this.mouseX, this.mouseY);
+            if (this.player) {
+                this.player.update(deltaTime, this.keys, this.mouseX, this.mouseY);
+            }
             
             // Spawn enemies
             if (Date.now() - this.lastSpawnTime > this.spawnInterval && this.enemiesSpawned < this.enemiesToSpawn) {
@@ -520,19 +564,25 @@ class FPSGame {
             this.checkCollisions();
             
             // Update physics
-            this.world.step(deltaTime);
+            if (this.world) {
+                this.world.step(deltaTime);
+            }
             
             // Update UI
             this.updateUI();
             
             // Check game over
-            if (this.player.health <= 0) {
+            if (this.player && this.player.health <= 0) {
                 this.gameOver();
             }
         }
         
-        // Render
-        this.renderer.render(this.scene, this.camera);
+        // Render - Make sure renderer exists
+        if (this.renderer && this.scene && this.camera) {
+            this.renderer.render(this.scene, this.camera);
+        } else {
+            console.error('Renderer, scene, or camera not initialized!');
+        }
         
         // Continue loop
         requestAnimationFrame(() => this.gameLoop());
