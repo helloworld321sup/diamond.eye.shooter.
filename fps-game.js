@@ -664,7 +664,7 @@ class Player {
         this.fireRate = 100; // milliseconds between shots
         
         // Movement
-        this.speed = 5;
+        this.speed = 2; // Reduced from 5 to 2
         this.jumpForce = 10;
         this.isGrounded = false;
         
@@ -707,9 +707,9 @@ class Player {
             moveX /= length;
             moveZ /= length;
             
-            // Apply speed (increased for better responsiveness)
-            moveX *= this.speed * deltaTime * 60; // 60 for frame rate independence
-            moveZ *= this.speed * deltaTime * 60;
+            // Apply speed
+            moveX *= this.speed * deltaTime;
+            moveZ *= this.speed * deltaTime;
             
             // Apply rotation to movement
             const rotatedX = moveX * Math.cos(mouseX) - moveZ * Math.sin(mouseX);
