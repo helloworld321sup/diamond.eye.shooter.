@@ -158,10 +158,18 @@ class FPSGame {
     }
     
     setupPhysics() {
+        // Check if CANNON is available
+        if (typeof CANNON === 'undefined') {
+            console.error('CANNON.js not loaded! Physics will be disabled.');
+            this.world = null;
+            return;
+        }
+        
         this.world = new CANNON.World();
         this.world.gravity.set(0, -9.82, 0);
         this.world.broadphase = new CANNON.NaiveBroadphase();
         this.world.solver.iterations = 10;
+        console.log('Physics setup complete');
     }
     
     setupAudio() {
@@ -269,6 +277,7 @@ class FPSGame {
     
     createPlayer() {
         this.player = new Player(this.scene, this.world, this.camera);
+        console.log('Player created');
     }
     
     createLevel() {
@@ -286,12 +295,14 @@ class FPSGame {
         this.scene.add(ground);
         console.log('Ground added');
         
-        // Ground physics
-        const groundShape = new CANNON.Plane();
-        const groundBody = new CANNON.Body({ mass: 0 });
-        groundBody.addShape(groundShape);
-        groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
-        this.world.add(groundBody);
+        // Ground physics (only if world exists)
+        if (this.world) {
+            const groundShape = new CANNON.Plane();
+            const groundBody = new CANNON.Body({ mass: 0 });
+            groundBody.addShape(groundShape);
+            groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+            this.world.add(groundBody);
+        }
         
         // Add a test cube to make sure rendering works
         const testGeometry = new THREE.BoxGeometry(2, 2, 2);
@@ -335,12 +346,14 @@ class FPSGame {
             mesh.receiveShadow = true;
             this.scene.add(mesh);
             
-            // Physics wall
-            const shape = new CANNON.Box(new CANNON.Vec3(wall.size[0]/2, wall.size[1]/2, wall.size[2]/2));
-            const body = new CANNON.Body({ mass: 0 });
-            body.addShape(shape);
-            body.position.set(wall.pos[0], wall.pos[1], wall.pos[2]);
-            this.world.add(body);
+            // Physics wall (only if world exists)
+            if (this.world) {
+                const shape = new CANNON.Box(new CANNON.Vec3(wall.size[0]/2, wall.size[1]/2, wall.size[2]/2));
+                const body = new CANNON.Body({ mass: 0 });
+                body.addShape(shape);
+                body.position.set(wall.pos[0], wall.pos[1], wall.pos[2]);
+                this.world.add(body);
+            }
         });
     }
     
@@ -360,12 +373,14 @@ class FPSGame {
             obstacle.receiveShadow = true;
             this.scene.add(obstacle);
             
-            // Physics obstacle
-            const shape = new CANNON.Box(new CANNON.Vec3(1, 1.5, 1));
-            const body = new CANNON.Body({ mass: 0 });
-            body.addShape(shape);
-            body.position.set(pos[0], pos[1] + 1.5, pos[2]);
-            this.world.add(body);
+            // Physics obstacle (only if world exists)
+            if (this.world) {
+                const shape = new CANNON.Box(new CANNON.Vec3(1, 1.5, 1));
+                const body = new CANNON.Body({ mass: 0 });
+                body.addShape(shape);
+                body.position.set(pos[0], pos[1] + 1.5, pos[2]);
+                this.world.add(body);
+            }
         });
     }
     
@@ -374,10 +389,12 @@ class FPSGame {
     }
     
     updateUI() {
-        document.getElementById('healthText').textContent = Math.max(0, this.player.health);
-        document.getElementById('healthFill').style.width = `${this.player.health}%`;
-        document.getElementById('currentAmmo').textContent = this.player.currentAmmo;
-        document.getElementById('totalAmmo').textContent = this.player.totalAmmo;
+        if (this.player) {
+            document.getElementById('healthText').textContent = Math.max(0, this.player.health);
+            document.getElementById('healthFill').style.width = `${this.player.health}%`;
+            document.getElementById('currentAmmo').textContent = this.player.currentAmmo;
+            document.getElementById('totalAmmo').textContent = this.player.totalAmmo;
+        }
         document.getElementById('scoreValue').textContent = this.score;
         document.getElementById('waveValue').textContent = this.wave;
     }
@@ -615,57 +632,55 @@ class Player {
     }
     
     setupPhysics() {
-        const shape = new CANNON.Sphere(0.5);
-        this.body = new CANNON.Body({ mass: 1 });
-        this.body.addShape(shape);
-        this.body.position.set(0, 2, 0);
-        this.body.fixedRotation = true;
-        this.world.add(this.body);
+        if (this.world) {
+            const shape = new CANNON.Sphere(0.5);
+            this.body = new CANNON.Body({ mass: 1 });
+            this.body.addShape(shape);
+            this.body.position.set(0, 2, 0);
+            this.body.fixedRotation = true;
+            this.world.add(this.body);
+        } else {
+            // No physics - just set position manually
+            this.position = { x: 0, y: 2, z: 0 };
+        }
     }
     
     update(deltaTime, keys, mouseX, mouseY) {
-        // Update camera position to follow physics body
-        this.camera.position.copy(this.body.position);
-        this.camera.position.y += 0.5; // Eye height
-        
         // Update camera rotation
         this.camera.rotation.order = 'YXZ';
         this.camera.rotation.y = mouseX;
         this.camera.rotation.x = mouseY;
         
         // Movement
-        const velocity = new CANNON.Vec3(0, 0, 0);
+        let moveX = 0;
+        let moveZ = 0;
         
-        if (keys['KeyW']) velocity.z -= 1;
-        if (keys['KeyS']) velocity.z += 1;
-        if (keys['KeyA']) velocity.x -= 1;
-        if (keys['KeyD']) velocity.x += 1;
+        if (keys['KeyW']) moveZ -= 1;
+        if (keys['KeyS']) moveZ += 1;
+        if (keys['KeyA']) moveX -= 1;
+        if (keys['KeyD']) moveX += 1;
         
-        if (velocity.length() > 0) {
-            velocity.normalize();
-            velocity.scale(this.speed, velocity);
+        if (moveX !== 0 || moveZ !== 0) {
+            // Normalize movement
+            const length = Math.sqrt(moveX * moveX + moveZ * moveZ);
+            moveX /= length;
+            moveZ /= length;
+            
+            // Apply speed
+            moveX *= this.speed * deltaTime;
+            moveZ *= this.speed * deltaTime;
             
             // Apply rotation to movement
-            const rotatedVelocity = new CANNON.Vec3();
-            rotatedVelocity.x = velocity.x * Math.cos(mouseX) - velocity.z * Math.sin(mouseX);
-            rotatedVelocity.z = velocity.x * Math.sin(mouseX) + velocity.z * Math.cos(mouseX);
-            rotatedVelocity.y = velocity.y;
+            const rotatedX = moveX * Math.cos(mouseX) - moveZ * Math.sin(mouseX);
+            const rotatedZ = moveX * Math.sin(mouseX) + moveZ * Math.cos(mouseX);
             
-            this.body.velocity.x = rotatedVelocity.x;
-            this.body.velocity.z = rotatedVelocity.z;
-        } else {
-            this.body.velocity.x *= 0.8; // Friction
-            this.body.velocity.z *= 0.8;
+            // Update camera position
+            this.camera.position.x += rotatedX;
+            this.camera.position.z += rotatedZ;
         }
         
-        // Jumping
-        if (keys['Space'] && this.isGrounded) {
-            this.body.velocity.y = this.jumpForce;
-            this.isGrounded = false;
-        }
-        
-        // Ground detection
-        this.isGrounded = this.body.position.y <= 1.1;
+        // Keep camera at ground level
+        this.camera.position.y = 1.6;
     }
     
     shoot() {
