@@ -53,7 +53,7 @@ class FPSGame {
             if (e.code === 'Escape') {
                 this.togglePause();
             }
-            if (e.code === 'KeyR') {
+            if (e.code === 'KeyR' && this.player) {
                 this.player.reload();
             }
         });
@@ -74,7 +74,7 @@ class FPSGame {
         document.addEventListener('click', (e) => {
             if (this.gameState === 'menu') {
                 this.startGame();
-            } else if (this.gameState === 'playing' && this.isPointerLocked) {
+            } else if (this.gameState === 'playing' && this.isPointerLocked && this.player) {
                 this.player.shoot();
             }
         });
@@ -84,11 +84,16 @@ class FPSGame {
             this.isPointerLocked = document.pointerLockElement === document.getElementById('gameCanvas');
         });
         
-        // UI button events
-        document.getElementById('startBtn').addEventListener('click', () => this.startGame());
-        document.getElementById('restartBtn').addEventListener('click', () => this.restartGame());
-        document.getElementById('resumeBtn').addEventListener('click', () => this.resumeGame());
-        document.getElementById('mainMenuBtn').addEventListener('click', () => this.showMainMenu());
+        // UI button events - with error handling
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const resumeBtn = document.getElementById('resumeBtn');
+        const mainMenuBtn = document.getElementById('mainMenuBtn');
+        
+        if (startBtn) startBtn.addEventListener('click', () => this.startGame());
+        if (restartBtn) restartBtn.addEventListener('click', () => this.restartGame());
+        if (resumeBtn) resumeBtn.addEventListener('click', () => this.resumeGame());
+        if (mainMenuBtn) mainMenuBtn.addEventListener('click', () => this.showMainMenu());
     }
     
     setupThreeJS() {
@@ -336,6 +341,7 @@ class FPSGame {
     }
     
     startGame() {
+        console.log('startGame() called');
         this.gameState = 'playing';
         this.score = 0;
         this.wave = 1;
@@ -348,17 +354,31 @@ class FPSGame {
         this.enemies = [];
         
         // Reset player
-        this.player.reset();
+        if (this.player) {
+            this.player.reset();
+        } else {
+            console.error('Player not initialized!');
+        }
         
         // Hide start screen, show game
-        document.getElementById('startScreen').classList.add('hidden');
-        document.getElementById('gameOverScreen').classList.add('hidden');
-        document.getElementById('pauseScreen').classList.add('hidden');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const pauseScreen = document.getElementById('pauseScreen');
+        
+        if (startScreen) startScreen.classList.add('hidden');
+        if (gameOverScreen) gameOverScreen.classList.add('hidden');
+        if (pauseScreen) pauseScreen.classList.add('hidden');
         
         // Request pointer lock
-        document.getElementById('gameCanvas').requestPointerLock();
+        const canvas = document.getElementById('gameCanvas');
+        if (canvas) {
+            canvas.requestPointerLock();
+        } else {
+            console.error('Canvas not found!');
+        }
         
         this.updateUI();
+        console.log('Game started successfully');
     }
     
     restartGame() {
@@ -797,5 +817,24 @@ class Enemy {
 // Initialize game when page loads
 let game;
 window.addEventListener('load', () => {
-    game = new FPSGame();
+    console.log('Page loaded, initializing FPS game...');
+    try {
+        game = new FPSGame();
+        console.log('FPS game initialized successfully');
+    } catch (error) {
+        console.error('Error initializing FPS game:', error);
+    }
+});
+
+// Also try to initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    if (!game) {
+        console.log('DOM ready, initializing FPS game...');
+        try {
+            game = new FPSGame();
+            console.log('FPS game initialized successfully');
+        } catch (error) {
+            console.error('Error initializing FPS game:', error);
+        }
+    }
 });
