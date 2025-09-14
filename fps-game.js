@@ -90,7 +90,19 @@ class FPSGame {
         const resumeBtn = document.getElementById('resumeBtn');
         const mainMenuBtn = document.getElementById('mainMenuBtn');
         
-        if (startBtn) startBtn.addEventListener('click', () => this.startGame());
+        console.log('Setting up button events:', {
+            startBtn: !!startBtn,
+            restartBtn: !!restartBtn,
+            resumeBtn: !!resumeBtn,
+            mainMenuBtn: !!mainMenuBtn
+        });
+        
+        if (startBtn) {
+            startBtn.addEventListener('click', () => {
+                console.log('Start button clicked!');
+                this.startGame();
+            });
+        }
         if (restartBtn) restartBtn.addEventListener('click', () => this.restartGame());
         if (resumeBtn) resumeBtn.addEventListener('click', () => this.resumeGame());
         if (mainMenuBtn) mainMenuBtn.addEventListener('click', () => this.showMainMenu());
@@ -401,6 +413,11 @@ class FPSGame {
     
     startGame() {
         console.log('startGame() called');
+        console.log('Current game state:', this.gameState);
+        console.log('Player exists:', !!this.player);
+        console.log('Scene exists:', !!this.scene);
+        console.log('Renderer exists:', !!this.renderer);
+        
         this.gameState = 'playing';
         this.score = 0;
         this.wave = 1;
@@ -415,6 +432,7 @@ class FPSGame {
         // Reset player
         if (this.player) {
             this.player.reset();
+            console.log('Player reset');
         } else {
             console.error('Player not initialized!');
         }
@@ -424,13 +442,23 @@ class FPSGame {
         const gameOverScreen = document.getElementById('gameOverScreen');
         const pauseScreen = document.getElementById('pauseScreen');
         
-        if (startScreen) startScreen.classList.add('hidden');
+        console.log('UI elements found:', {
+            startScreen: !!startScreen,
+            gameOverScreen: !!gameOverScreen,
+            pauseScreen: !!pauseScreen
+        });
+        
+        if (startScreen) {
+            startScreen.classList.add('hidden');
+            console.log('Start screen hidden');
+        }
         if (gameOverScreen) gameOverScreen.classList.add('hidden');
         if (pauseScreen) pauseScreen.classList.add('hidden');
         
         // Request pointer lock
         const canvas = document.getElementById('gameCanvas');
         if (canvas) {
+            console.log('Requesting pointer lock...');
             canvas.requestPointerLock();
         } else {
             console.error('Canvas not found!');
@@ -881,25 +909,29 @@ class Enemy {
 
 // Initialize game when page loads
 let game;
-window.addEventListener('load', () => {
-    console.log('Page loaded, initializing FPS game...');
+
+function initializeGame() {
+    if (game) {
+        console.log('Game already initialized');
+        return;
+    }
+    
+    console.log('Initializing FPS game...');
     try {
         game = new FPSGame();
         console.log('FPS game initialized successfully');
     } catch (error) {
         console.error('Error initializing FPS game:', error);
     }
-});
+}
 
-// Also try to initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    if (!game) {
-        console.log('DOM ready, initializing FPS game...');
-        try {
-            game = new FPSGame();
-            console.log('FPS game initialized successfully');
-        } catch (error) {
-            console.error('Error initializing FPS game:', error);
-        }
-    }
-});
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', initializeGame);
+
+// Fallback if DOMContentLoaded already fired
+if (document.readyState === 'loading') {
+    // Still loading, wait for DOMContentLoaded
+} else {
+    // Already loaded, initialize immediately
+    initializeGame();
+}
