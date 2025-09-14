@@ -291,7 +291,18 @@ class FPSGame {
     
     createPlayer() {
         this.player = new Player(this.scene, this.world, this.camera);
+        this.createGun();
         console.log('Player created');
+    }
+    
+    createGun() {
+        // Create a simple gun model
+        const gunGeometry = new THREE.BoxGeometry(0.2, 0.1, 1.0);
+        const gunMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+        this.gun = new THREE.Mesh(gunGeometry, gunMaterial);
+        this.gun.position.set(0.3, -0.2, -0.5);
+        this.camera.add(this.gun);
+        console.log('Gun created');
     }
     
     createLevel() {
@@ -696,9 +707,9 @@ class Player {
             moveX /= length;
             moveZ /= length;
             
-            // Apply speed
-            moveX *= this.speed * deltaTime;
-            moveZ *= this.speed * deltaTime;
+            // Apply speed (increased for better responsiveness)
+            moveX *= this.speed * deltaTime * 60; // 60 for frame rate independence
+            moveZ *= this.speed * deltaTime * 60;
             
             // Apply rotation to movement
             const rotatedX = moveX * Math.cos(mouseX) - moveZ * Math.sin(mouseX);
@@ -803,27 +814,41 @@ class Bullet {
         this.mesh.position.copy(this.camera.position);
         this.scene.add(this.mesh);
         
-        // Create physics body
-        const shape = new CANNON.Sphere(0.05);
-        this.body = new CANNON.Body({ mass: 0.1 });
-        this.body.addShape(shape);
-        this.body.position.copy(this.camera.position);
-        
-        // Set velocity based on camera direction
-        const direction = new THREE.Vector3();
-        this.camera.getWorldDirection(direction);
-        this.body.velocity.set(
-            direction.x * this.speed,
-            direction.y * this.speed,
-            direction.z * this.speed
-        );
-        
-        this.world.add(this.body);
+        // Create physics body (only if world exists)
+        if (this.world) {
+            const shape = new CANNON.Sphere(0.05);
+            this.body = new CANNON.Body({ mass: 0.1 });
+            this.body.addShape(shape);
+            this.body.position.copy(this.camera.position);
+            
+            // Set velocity based on camera direction
+            const direction = new THREE.Vector3();
+            this.camera.getWorldDirection(direction);
+            this.body.velocity.set(
+                direction.x * this.speed,
+                direction.y * this.speed,
+                direction.z * this.speed
+            );
+            
+            this.world.add(this.body);
+        } else {
+            // No physics - just set position and velocity
+            this.position = this.camera.position.clone();
+            const direction = new THREE.Vector3();
+            this.camera.getWorldDirection(direction);
+            this.velocity = direction.multiplyScalar(this.speed);
+        }
     }
     
     update(deltaTime) {
         // Update mesh position
-        this.mesh.position.copy(this.body.position);
+        if (this.body) {
+            this.mesh.position.copy(this.body.position);
+        } else {
+            // No physics - move manually
+            this.position.add(this.velocity.clone().multiplyScalar(deltaTime));
+            this.mesh.position.copy(this.position);
+        }
         
         // Check lifetime
         if (Date.now() - this.createdTime > this.lifetime) {
@@ -838,7 +863,9 @@ class Bullet {
     
     destroy() {
         this.scene.remove(this.mesh);
-        this.world.remove(this.body);
+        if (this.world && this.body) {
+            this.world.remove(this.body);
+        }
     }
 }
 
